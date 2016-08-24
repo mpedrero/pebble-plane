@@ -27,6 +27,9 @@
  #define LINE_HEIGHT_LARGE 55
 #endif
 
+/* App version */
+#define APP_VERSION "1.3"
+
 /* Percentage to change battery indicator color */
 #define BATTERY_LOW 30
 
@@ -62,6 +65,15 @@ static struct {
 	GColor color_battery_low;
 	GColor color_date;
 } theme;
+
+/* New variables MUST BE ADDED BELOW all the existent ones, so the 
+ * corresponding ones in all versions will be consistent */
+static enum{
+	K_VERSION = 0,
+	K_LANG,
+	K_THEME,
+	K_BT_ALARM
+} keys;
 
 /* Function to update the time layer with the current time.
  * TODO: Implement update_hour and update_minute to save battery */
@@ -394,17 +406,20 @@ static void prv_inbox_received_handler(DictionaryIterator *iter, void *context) 
 	if(set_language) {
 		strncpy(settings.lang, set_language->value->cstring, sizeof(settings.lang));
 		update_date();
+		persist_write_string(K_LANG, settings.lang);
 	}
 
 	Tuple* set_theme = dict_find(iter, MESSAGE_KEY_theme);
 	if(set_theme) {
 		strncpy(settings.theme, set_theme->value->cstring, sizeof(settings.theme));
 		update_theme();
+		persist_write_string(K_THEME, settings.theme);
 	}
 
 	Tuple* set_bt = dict_find(iter, MESSAGE_KEY_bt_alarm);
 	if(set_bt) {
 		settings.bt_alarm = set_bt->value->int32 == 1;
+		persist_write_bool(K_BT_ALARM, settings.bt_alarm);
 	}
 	APP_LOG(APP_LOG_LEVEL_DEBUG, "Exiting settings_handler");
 }
@@ -417,9 +432,38 @@ static void prv_init(void) {
 
 /* Defaults settings for the watchface */
 static void load_defaults(void) {
-	strcpy(settings.theme, "dark");
-	strcpy(settings.lang, "eng");
-	settings.bt_alarm = false;
+	/* Check first if there is a previous config in localStorage */
+	if(persist_exists(K_VERSION)){
+		char installed_version[8];
+		persist_read_string(K_VERSION, installed_version, sizeof(installed_version));
+		if(strcmp(installed_version, APP_VERSION ) != 0){
+			/* Routine to update local storage if necessary. Need to be
+			 * updated in each version */
+
+			/* Once updated, update the version */
+			persist_write_string(K_VERSION, installed_version);
+		}
+	}
+	if(persist_exists(K_THEME)){
+		persist_read_string(K_THEME, settings.theme, sizeof(settings.theme));
+	}
+	else{
+		strcpy(settings.theme, "dark");
+	}
+
+	if(persist_exists(K_LANG)){
+		persist_read_string(K_LANG, settings.lang, sizeof(settings.lang));
+	}
+	else{
+		strcpy(settings.lang, "eng");
+	}
+	
+	if(persist_exists(K_BT_ALARM)){
+		settings.bt_alarm = persist_read_bool(K_BT_ALARM);
+	}
+	else{
+		settings.bt_alarm = false;
+	}
 	settings.bt_vibrate = false;
 }
 
