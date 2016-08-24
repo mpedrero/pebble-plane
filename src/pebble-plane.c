@@ -360,7 +360,17 @@ static void battery_handler() {
 		snprintf(s_battery, sizeof(s_battery), "CHR");
 	}
 	else {
-		snprintf(s_battery, sizeof(s_battery), "%d%%", battery_level);
+		if(battery_level == 100){
+			/* Fix 100% battery issue when it is at 100% in pebble & pebble time */
+			#if defined(PBL_PLATFORM_CHALK)
+			snprintf(s_battery, sizeof(s_battery), "%d%%", battery_level);
+			#else
+			snprintf(s_battery, sizeof(s_battery), "%d", battery_level);
+			#endif
+		}
+		else {
+			snprintf(s_battery, sizeof(s_battery), "%d%%", battery_level);
+		}
 	}
 
 	/* Display battery status on the TextLayer */
