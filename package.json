@@ -1,0 +1,43 @@
+{
+  "name": "pebble-plane",
+  "author": "Manuel Pedrero",
+  "version": "1.0.0",
+  "keywords": ["simple","digital","time","health"],
+  "private": false,
+  "dependencies": {},
+  "pebble": {
+    "displayName": "Plane",
+    "uuid": "cb64d11d-c138-4b35-8771-6792b68d5eae",
+    "sdkVersion": "3",
+    "enableMultiJS": true,
+    "targetPlatforms": [
+      "aplite",
+      "basalt",
+      "chalk"
+    ],
+    "watchapp": {
+      "watchface": true
+    },
+    "messageKeys": [
+      "dummy"
+    ],
+    "resources": {
+      "media": [
+        {
+	      "type": "font",
+	      "name": "FONT_HEL_LIG_70",
+	      "characters": "[0-9]",
+	      "file": "fonts/Helvetica.ttf",
+	      "compatibility": "2.7"
+	    },
+	    {
+	      "type": "font",
+	      "name": "FONT_HEL_LIG_21",
+	      "characters": "[0-9:A-Za-z,% ]",
+	      "file": "fonts/Helvetica.ttf"
+	    }
+      ]
+    },
+    "capabilities": [ "health" ]
+  }
+}
