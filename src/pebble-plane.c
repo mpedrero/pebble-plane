@@ -1,34 +1,6 @@
 #include <pebble.h>
 
-/* Choices are eng, spa */
-#define LANG "eng"
-
-/* Choices are 0 (dark) and 1 (light) */
-#define THEME 0
-
-/* Percentage to change battery indicator color */
-#define BATTERY_LOW 30
-
-#if THEME == 0
-#define COLOR_FRONT   GColorWhite
-#define COLOR_BACK    GColorBlack
-#define COLOR_DEBUG   GColorVividCerulean
-#define COLOR_STEPS   GColorChromeYellow
-#define COLOR_BATTERY GColorBrightGreen
-#define COLOR_BATTERY_LOW GColorRed
-#define COLOR_DATE    GColorWhite
-#elif THEME == 1
-#define COLOR_FRONT   GColorBlack
-#define COLOR_BACK    GColorWhite
-#define COLOR_DEBUG   GColorVividCerulean
-#define COLOR_STEPS   GColorWindsorTan
-#define COLOR_BATTERY GColorDarkGreen
-#define COLOR_BATTERY_LOW GColorDarkCandyAppleRed
-#define COLOR_DATE    GColorBlack
-#endif
-
 /* Layout constants */
-#define MARGIN 5
 #if defined(PBL_PLATFORM_CHALK)
  #define PBL_X 180
  #define PBL_Y 180
@@ -55,6 +27,9 @@
  #define LINE_HEIGHT_LARGE 55
 #endif
 
+/* Percentage to change battery indicator color */
+#define BATTERY_LOW 30
+
 /* Leave for production code. Comment BOTH for debugging */
 #undef APP_LOG
 #define APP_LOG(...) 
@@ -71,6 +46,22 @@ static int battery_level;
 static GFont s_time_font;
 static GFont s_text_font;
 
+static struct {
+	char lang[8];
+	char theme[8];
+	bool bt_alarm;
+	bool bt_vibrate;
+} settings;
+
+static struct {
+	GColor color_front;
+	GColor color_back;
+	GColor color_debug;
+	GColor color_steps;
+	GColor color_battery;
+	GColor color_battery_low;
+	GColor color_date;
+} theme;
 
 /* Function to update the time layer with the current time.
  * TODO: Implement update_hour and update_minute to save battery */
@@ -106,7 +97,7 @@ static void update_date() {
 	strftime(s_date_buffer_1, sizeof(s_date_buffer_1), "%a", tick_time);
 	strftime(s_date_buffer_2, sizeof(s_date_buffer_2), "%d", tick_time);
 
-	if(strcmp(LANG, "spa") == 0){
+	if(strcmp(settings.lang, "spa") == 0){
 		if (strcmp(s_date_buffer_1, "Mon") == 0){
 		strcpy(s_date_buffer_1, "LUN");
 		}else if (strcmp(s_date_buffer_1, "Tue") == 0){
@@ -117,6 +108,57 @@ static void update_date() {
 			strcpy(s_date_buffer_1, "JUE");
 		}else if (strcmp(s_date_buffer_1, "Fri") == 0){
 			strcpy(s_date_buffer_1, "VIE");
+		}else if (strcmp(s_date_buffer_1, "Sat") == 0){
+			strcpy(s_date_buffer_1, "SAB");
+		}else if (strcmp(s_date_buffer_1, "Sun") == 0){
+			strcpy(s_date_buffer_1, "DOM");
+		}
+	}
+	else if (strcmp(settings.lang, "fr") == 0){
+		if (strcmp(s_date_buffer_1, "Mon") == 0){
+		strcpy(s_date_buffer_1, "LUN");
+		}else if (strcmp(s_date_buffer_1, "Tue") == 0){
+			strcpy(s_date_buffer_1, "MAR");
+		}else if (strcmp(s_date_buffer_1, "Wed") == 0){
+			strcpy(s_date_buffer_1, "MER");
+		}else if (strcmp(s_date_buffer_1, "Thu") == 0){
+			strcpy(s_date_buffer_1, "JEU");
+		}else if (strcmp(s_date_buffer_1, "Fri") == 0){
+			strcpy(s_date_buffer_1, "VEN");
+		}else if (strcmp(s_date_buffer_1, "Sat") == 0){
+			strcpy(s_date_buffer_1, "SAM");
+		}else if (strcmp(s_date_buffer_1, "Sun") == 0){
+			strcpy(s_date_buffer_1, "DIM");
+		}
+	} 
+	else if (strcmp(settings.lang, "ger") == 0){
+		if (strcmp(s_date_buffer_1, "Mon") == 0){
+		strcpy(s_date_buffer_1, "MO");
+		}else if (strcmp(s_date_buffer_1, "Tue") == 0){
+			strcpy(s_date_buffer_1, "DI");
+		}else if (strcmp(s_date_buffer_1, "Wed") == 0){
+			strcpy(s_date_buffer_1, "MI");
+		}else if (strcmp(s_date_buffer_1, "Thu") == 0){
+			strcpy(s_date_buffer_1, "DO");
+		}else if (strcmp(s_date_buffer_1, "Fri") == 0){
+			strcpy(s_date_buffer_1, "FR");
+		}else if (strcmp(s_date_buffer_1, "Sat") == 0){
+			strcpy(s_date_buffer_1, "SA");
+		}else if (strcmp(s_date_buffer_1, "Sun") == 0){
+			strcpy(s_date_buffer_1, "DO");
+		}
+	} 
+	else if (strcmp(settings.lang, "ita") == 0){
+		if (strcmp(s_date_buffer_1, "Mon") == 0){
+		strcpy(s_date_buffer_1, "LUN");
+		}else if (strcmp(s_date_buffer_1, "Tue") == 0){
+			strcpy(s_date_buffer_1, "MAR");
+		}else if (strcmp(s_date_buffer_1, "Wed") == 0){
+			strcpy(s_date_buffer_1, "MER");
+		}else if (strcmp(s_date_buffer_1, "Thu") == 0){
+			strcpy(s_date_buffer_1, "GIO");
+		}else if (strcmp(s_date_buffer_1, "Fri") == 0){
+			strcpy(s_date_buffer_1, "VEN");
 		}else if (strcmp(s_date_buffer_1, "Sat") == 0){
 			strcpy(s_date_buffer_1, "SAB");
 		}else if (strcmp(s_date_buffer_1, "Sun") == 0){
@@ -166,12 +208,118 @@ static void update_step() {
 	APP_LOG(APP_LOG_LEVEL_DEBUG, "Exiting update_step");
 }
 
+/* Function to update theme colors according to settings */
+static void update_theme() {
+	if(strcmp(settings.theme,"light") == 0){
+		theme.color_front   = GColorBlack;
+		theme.color_back    = GColorWhite;
+		theme.color_debug   = GColorVividCerulean;
+		theme.color_steps   = GColorWindsorTan;
+		theme.color_battery = GColorDarkGreen;
+		theme.color_battery_low = GColorDarkCandyAppleRed;
+		theme.color_date    = GColorBlack;
+	}
+	else{
+		theme.color_front   = GColorWhite;
+		theme.color_back    = GColorBlack;
+		theme.color_debug   = GColorVividCerulean;
+		theme.color_steps   = GColorChromeYellow;
+		theme.color_battery = GColorBrightGreen;
+		theme.color_battery_low = GColorRed;
+		theme.color_date    = GColorWhite;
+	}
+
+	window_set_background_color(s_main_window, theme.color_back);
+
+	text_layer_set_background_color(s_hour_layer, theme.color_back);
+	text_layer_set_text_color(s_hour_layer, theme.color_front);
+
+	text_layer_set_background_color(s_minute_layer, theme.color_back);
+	text_layer_set_text_color(s_minute_layer, theme.color_front);
+
+	text_layer_set_background_color(s_date_layer_1, theme.color_back);
+	text_layer_set_text_color(s_date_layer_1, theme.color_date);
+
+	text_layer_set_background_color(s_date_layer_2, theme.color_back);
+	text_layer_set_text_color(s_date_layer_2, theme.color_date);
+
+	text_layer_set_background_color(s_step_layer, theme.color_back);
+	text_layer_set_text_color(s_step_layer, theme.color_steps);
+
+	text_layer_set_background_color(s_battery_layer, theme.color_back);
+	text_layer_set_text_color(s_battery_layer, theme.color_battery);
+
+	text_layer_set_background_color(s_bt_layer, theme.color_back);
+	text_layer_set_text_color(s_bt_layer, theme.color_front);
+}
+
+/* Function to set layout of the different layers */
+void update_layout() {
+	/* Get information about the Window */
+	Layer* window_layer = window_get_root_layer(s_main_window);
+	GRect bounds = layer_get_bounds(window_layer);
+
+	/* Create the TextLayer with specific bounds. Only valid for Pebble/Pebble Time */
+	s_hour_layer = text_layer_create(
+		GRect(BASE_X_LARGE, BASE_Y_LARGE, bounds.size.w, 72));
+	s_minute_layer = text_layer_create(
+		GRect(BASE_X_LARGE, BASE_Y_LARGE + LINE_HEIGHT_LARGE, bounds.size.w, 72));
+	s_date_layer_1 = text_layer_create(
+		GRect(BASE_X_SMALL, BASE_Y_SMALL, PBL_X-BASE_X_SMALL, LAYER_Y_SMALL));
+	s_date_layer_2 = text_layer_create(
+		GRect(BASE_X_SMALL, BASE_Y_SMALL + LINE_HEIGHT_SMALL*1, PBL_X-BASE_X_SMALL, LAYER_Y_SMALL));
+	s_step_layer = text_layer_create(
+		GRect(BASE_X_SMALL, BASE_Y_SMALL + LINE_HEIGHT_SMALL*2, PBL_X-BASE_X_SMALL, LAYER_Y_SMALL));
+	s_bt_layer = text_layer_create(
+		GRect(bounds.size.w*0.33+2, 0, bounds.size.w*0.33-5, 30));
+	#if defined(PBL_HEALTH)
+
+		s_battery_layer = text_layer_create(
+		GRect(BASE_X_SMALL, BASE_Y_SMALL + LINE_HEIGHT_SMALL*3, PBL_X-BASE_X_SMALL, LAYER_Y_SMALL));
+	#else
+		s_battery_layer = text_layer_create(
+		GRect(BASE_X_SMALL, BASE_Y_SMALL + LINE_HEIGHT_SMALL*2, PBL_X-BASE_X_SMALL, LAYER_Y_SMALL));
+	#endif
+
+	/* Create GFont */
+	s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_HEL_LIG_70));
+	s_text_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_HEL_LIG_21));
+
+	/* Layout for hour layer */
+	text_layer_set_font(s_hour_layer, s_time_font);
+	text_layer_set_text_alignment(s_hour_layer, GTextAlignmentLeft);
+
+	/* Layout for minute layer */
+	text_layer_set_font(s_minute_layer, s_time_font);
+	text_layer_set_text_alignment(s_minute_layer, GTextAlignmentLeft);
+
+	/* Layout for date layer 1*/
+	text_layer_set_font(s_date_layer_1, s_text_font);
+	text_layer_set_text_alignment(s_date_layer_1, GTextAlignmentLeft);
+
+	/* Layout for date layer 2*/
+	text_layer_set_font(s_date_layer_2, s_text_font);
+	text_layer_set_text_alignment(s_date_layer_2, GTextAlignmentLeft);
+
+	/* Layout for step layer */
+	text_layer_set_font(s_step_layer, s_text_font);
+	text_layer_set_text_alignment(s_step_layer, GTextAlignmentLeft);
+
+	/* Layout for battery layer */
+	text_layer_set_font(s_battery_layer, s_text_font);
+	text_layer_set_text_alignment(s_battery_layer, GTextAlignmentLeft);
+
+	/* Layout for bluetooth connection layer */
+	text_layer_set_font(s_bt_layer, s_text_font);
+	text_layer_set_text_alignment(s_bt_layer, GTextAlignmentCenter);
+}
+
 /* Function called every minute by TickTimerService */
 static void tick_handler(struct tm* tick_time, TimeUnits units_changed) {
 	if(units_changed & MINUTE_UNIT){
 		update_time();
 		#if defined(PBL_HEALTH)
-		update_step();
+			update_step();
 		#endif
 	}
 	if(units_changed & DAY_UNIT){
@@ -190,9 +338,9 @@ static void battery_handler() {
 
 	#if defined(PBL_COLOR)
 	if(battery_level > BATTERY_LOW){
-		text_layer_set_text_color(s_battery_layer, COLOR_BATTERY);
+		text_layer_set_text_color(s_battery_layer, theme.color_battery);
 	}else{
-		text_layer_set_text_color(s_battery_layer, COLOR_BATTERY_LOW);
+		text_layer_set_text_color(s_battery_layer, theme.color_battery_low);
 	}
 	#endif
 	
@@ -217,11 +365,21 @@ static void bt_handler(bool connected) {
 	bt_connected = connected;
 
 	if(!bt_connected) {
-		snprintf(s_bt, sizeof(s_bt), "BT");
-		vibes_short_pulse();
+		if(settings.bt_alarm){
+			snprintf(s_bt, sizeof(s_bt), "BT");
+		}
+		else{
+			snprintf(s_bt, sizeof(s_bt), "  ");
+		}
+		if(settings.bt_vibrate){
+			vibes_short_pulse();
+		}
 	}
 	else {
 		snprintf(s_bt, sizeof(s_bt), "  ");
+		if(settings.bt_vibrate){
+			vibes_double_pulse();
+		}
 	}
 
 	/* Display connection status on the TextLayer */
@@ -229,81 +387,51 @@ static void bt_handler(bool connected) {
 	APP_LOG(APP_LOG_LEVEL_DEBUG, "Exiting bt_handler");
 }
 
+/* Function called when user change settings on the companion app */
+static void prv_inbox_received_handler(DictionaryIterator *iter, void *context) {
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "Entering settings_handler");
+	Tuple* set_language = dict_find(iter, MESSAGE_KEY_language);
+	if(set_language) {
+		strncpy(settings.lang, set_language->value->cstring, sizeof(settings.lang));
+		update_date();
+	}
+
+	Tuple* set_theme = dict_find(iter, MESSAGE_KEY_theme);
+	if(set_theme) {
+		strncpy(settings.theme, set_theme->value->cstring, sizeof(settings.theme));
+		update_theme();
+	}
+
+	Tuple* set_bt = dict_find(iter, MESSAGE_KEY_bt_alarm);
+	if(set_bt) {
+		settings.bt_alarm = set_bt->value->int32 == 1;
+	}
+	APP_LOG(APP_LOG_LEVEL_DEBUG, "Exiting settings_handler");
+}
+
+/* Function to open a connection with AppMesage to listen data from Clay */
+static void prv_init(void) {
+	app_message_register_inbox_received(prv_inbox_received_handler);
+	app_message_open(128, 128);
+}
+
+/* Defaults settings for the watchface */
+static void load_defaults(void) {
+	strcpy(settings.theme, "dark");
+	strcpy(settings.lang, "eng");
+	settings.bt_alarm = false;
+	settings.bt_vibrate = false;
+}
+
 static void main_window_load(Window* window) {
 	APP_LOG(APP_LOG_LEVEL_DEBUG, "Entering main_window_load");
-	/* Get information about the Window */
-	Layer* window_layer = window_get_root_layer(window);
-	GRect bounds = layer_get_bounds(window_layer);
+	Layer* window_layer = window_get_root_layer(s_main_window);
 
-	/* Create the TextLayer with specific bounds. Only valid for Pebble/Pebble Time */
-	s_hour_layer = text_layer_create(
-		GRect(BASE_X_LARGE, BASE_Y_LARGE, bounds.size.w, 72));
-	s_minute_layer = text_layer_create(
-		GRect(BASE_X_LARGE, BASE_Y_LARGE + LINE_HEIGHT_LARGE, bounds.size.w, 72));
-	s_date_layer_1 = text_layer_create(
-		GRect(BASE_X_SMALL, BASE_Y_SMALL, PBL_X-BASE_X_SMALL, LAYER_Y_SMALL));
-	s_date_layer_2 = text_layer_create(
-		GRect(BASE_X_SMALL, BASE_Y_SMALL + LINE_HEIGHT_SMALL*1, PBL_X-BASE_X_SMALL, LAYER_Y_SMALL));
-	s_step_layer = text_layer_create(
-		GRect(BASE_X_SMALL, BASE_Y_SMALL + LINE_HEIGHT_SMALL*2, PBL_X-BASE_X_SMALL, LAYER_Y_SMALL));
-	s_bt_layer = text_layer_create(
-		GRect(bounds.size.w*0.33+2, 0, bounds.size.w*0.33-MARGIN, 30));
-	#if defined(PBL_HEALTH)
-	s_battery_layer = text_layer_create(
-		GRect(BASE_X_SMALL, BASE_Y_SMALL + LINE_HEIGHT_SMALL*3, PBL_X-BASE_X_SMALL, LAYER_Y_SMALL));
-	#else
-		s_battery_layer = text_layer_create(
-		GRect(BASE_X_SMALL, BASE_Y_SMALL + LINE_HEIGHT_SMALL*2, PBL_X-BASE_X_SMALL, LAYER_Y_SMALL));
-	#endif
+	/* Set layout */
+	update_layout();
 
-	/* Create GFont */
-	s_time_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_HEL_LIG_70));
-	s_text_font = fonts_load_custom_font(resource_get_handle(RESOURCE_ID_FONT_HEL_LIG_21));
-
-	/* Main window */
-	window_set_background_color(window, COLOR_BACK);
-
-	/* Layout for hour layer */
-	text_layer_set_background_color(s_hour_layer, COLOR_BACK);
-	text_layer_set_text_color(s_hour_layer, COLOR_FRONT);
-	text_layer_set_font(s_hour_layer, s_time_font);
-	text_layer_set_text_alignment(s_hour_layer, GTextAlignmentLeft);
-
-	/* Layout for minute layer */
-	text_layer_set_background_color(s_minute_layer, COLOR_BACK);
-	text_layer_set_text_color(s_minute_layer, COLOR_FRONT);
-	text_layer_set_font(s_minute_layer, s_time_font);
-	text_layer_set_text_alignment(s_minute_layer, GTextAlignmentLeft);
-
-	/* Layout for date layer 1*/
-	text_layer_set_background_color(s_date_layer_1, COLOR_BACK);
-	text_layer_set_text_color(s_date_layer_1, COLOR_DATE);
-	text_layer_set_font(s_date_layer_1, s_text_font);
-	text_layer_set_text_alignment(s_date_layer_1, GTextAlignmentLeft);
-
-	/* Layout for date layer 2*/
-	text_layer_set_background_color(s_date_layer_2, COLOR_BACK);
-	text_layer_set_text_color(s_date_layer_2, COLOR_DATE);
-	text_layer_set_font(s_date_layer_2, s_text_font);
-	text_layer_set_text_alignment(s_date_layer_2, GTextAlignmentLeft);
-
-	/* Layout for step layer */
-	text_layer_set_background_color(s_step_layer, COLOR_BACK);
-	text_layer_set_text_color(s_step_layer, COLOR_STEPS);
-	text_layer_set_font(s_step_layer, s_text_font);
-	text_layer_set_text_alignment(s_step_layer, GTextAlignmentLeft);
-
-	/* Layout for battery layer */
-	text_layer_set_background_color(s_battery_layer, COLOR_BACK);
-	text_layer_set_text_color(s_battery_layer, COLOR_BATTERY);
-	text_layer_set_font(s_battery_layer, s_text_font);
-	text_layer_set_text_alignment(s_battery_layer, GTextAlignmentLeft);
-
-	/* Layout for bluetooth connection layer */
-	text_layer_set_background_color(s_bt_layer, COLOR_BACK);
-	text_layer_set_text_color(s_bt_layer, COLOR_FRONT);
-	text_layer_set_font(s_bt_layer, s_text_font);
-	text_layer_set_text_alignment(s_bt_layer, GTextAlignmentCenter);
+	/* Set colors according to the theme */
+	update_theme();
 
 	/* Add the layers as a child layers to the Window's root layer. 
 	 * The order here is important to control clipping */
@@ -339,6 +467,13 @@ static void main_window_unload(Window* window) {
 
 static void init() {
 	APP_LOG(APP_LOG_LEVEL_DEBUG, "Entering init");
+
+	/* Load default theme, language, etc. */
+	load_defaults();
+	
+	/* Suscribe to AppMessage to receive inputs from the user */
+	prv_init();
+	
 	/* Register with TickTimerService once a minute to change time. 
 	 * IMPORTANT: Apparently ONLY ONE TickTimerService can be active
 	 * at a time. Newer calls to this function will overwrite this
@@ -369,7 +504,7 @@ static void init() {
 	update_time();
 	update_date();
 	#if defined(PBL_HEALTH)
-	update_step();
+		update_step();
 	#endif
 	battery_handler();
 	bt_handler(connection_service_peek_pebble_app_connection());
@@ -385,6 +520,7 @@ static void deinit() {
 
 int main(void) {
 	init();
+	settings.bt_vibrate = true; /* This avoid vibration every time we load the watchface */
 	app_event_loop();
 	deinit();
 }

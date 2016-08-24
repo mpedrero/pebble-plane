@@ -1,10 +1,17 @@
 {
   "name": "pebble-plane",
   "author": "Manuel Pedrero",
-  "version": "1.0.0",
-  "keywords": ["simple","digital","time","health"],
+  "version": "1.2.0",
+  "keywords": [
+    "simple",
+    "digital",
+    "time",
+    "health"
+  ],
   "private": false,
-  "dependencies": {},
+  "dependencies": {
+    "pebble-clay": "^1.0.2"
+  },
   "pebble": {
     "displayName": "Plane",
     "uuid": "cb64d11d-c138-4b35-8771-6792b68d5eae",
@@ -19,25 +26,31 @@
       "watchface": true
     },
     "messageKeys": [
-      "dummy"
+      "theme",
+      "language",
+      "bt_alarm",
+      "steps"
     ],
     "resources": {
       "media": [
         {
-	      "type": "font",
-	      "name": "FONT_HEL_LIG_70",
-	      "characters": "[0-9]",
-	      "file": "fonts/Helvetica.ttf",
-	      "compatibility": "2.7"
-	    },
-	    {
-	      "type": "font",
-	      "name": "FONT_HEL_LIG_21",
-	      "characters": "[0-9:A-Za-z,% ]",
-	      "file": "fonts/Helvetica.ttf"
-	    }
+          "type": "font",
+          "name": "FONT_HEL_LIG_70",
+          "characters": "[0-9]",
+          "file": "fonts/Helvetica.ttf",
+          "compatibility": "2.7"
+        },
+        {
+          "type": "font",
+          "name": "FONT_HEL_LIG_21",
+          "characters": "[0-9:A-Za-z,% ]",
+          "file": "fonts/Helvetica.ttf"
+        }
       ]
     },
-    "capabilities": [ "health" ]
+    "capabilities": [
+      "health",
+      "configurable"
+    ]
   }
 }
