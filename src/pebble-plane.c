@@ -13,6 +13,7 @@
  #define BASE_X_LARGE 30
  #define BASE_Y_LARGE 20
  #define LINE_HEIGHT_LARGE 55
+ #define TIME_PADDING 8
 #else
  #define PBL_X 144
  #define PBL_Y 168
@@ -25,10 +26,11 @@
  #define BASE_X_LARGE 10
  #define BASE_Y_LARGE 15
  #define LINE_HEIGHT_LARGE 55
+ #define TIME_PADDING 8
 #endif
 
 /* App version */
-#define APP_VERSION "1.3"
+#define APP_VERSION "1.5"
 
 /* Percentage to change battery indicator color */
 #define BATTERY_LOW 30
@@ -48,10 +50,13 @@ static TextLayer* s_bt_layer;
 static int battery_level;
 static GFont s_time_font;
 static GFont s_text_font;
+static char hour12_fmt_string[8];
+static char hour24_fmt_string[8];
 
 static struct {
 	char lang[8];
 	char theme[8];
+	bool leading_zero;
 	bool bt_alarm;
 	bool bt_vibrate;
 } settings;
@@ -72,8 +77,21 @@ static enum{
 	K_VERSION = 0,
 	K_LANG,
 	K_THEME,
-	K_BT_ALARM
+	K_BT_ALARM,
+	K_LEADING_ZERO
 } keys;
+
+/* Set hour format according to the settings */
+static void update_hour_format(){
+	if(settings.leading_zero){
+		strcpy(hour12_fmt_string,"%I");
+		strcpy(hour24_fmt_string,"%H");
+	}
+	else{
+		strcpy(hour12_fmt_string,"%l");
+		strcpy(hour24_fmt_string,"%k");
+	}
+}
 
 /* Function to update the time layer with the current time.
  * TODO: Implement update_hour and update_minute to save battery */
@@ -86,7 +104,7 @@ static void update_time() {
 	/* Write the current hours and minutes into a buffer */
 	static char s_hour[8];
 	static char s_minute[8];
-	strftime(s_hour, sizeof(s_hour), clock_is_24h_style() ? "%H" : "%I", tick_time);
+	strftime(s_hour, sizeof(s_hour), clock_is_24h_style() ? hour24_fmt_string : hour12_fmt_string, tick_time);
 	strftime(s_minute, sizeof(s_minute), "%M", tick_time);
 
 	/* Display this time on the TextLayer */
@@ -157,7 +175,7 @@ static void update_date() {
 		}else if (strcmp(s_date_buffer_1, "Sat") == 0){
 			strcpy(s_date_buffer_1, "SA");
 		}else if (strcmp(s_date_buffer_1, "Sun") == 0){
-			strcpy(s_date_buffer_1, "DO");
+			strcpy(s_date_buffer_1, "SO");
 		}
 	} 
 	else if (strcmp(settings.lang, "ita") == 0){
@@ -273,9 +291,9 @@ void update_layout() {
 
 	/* Create the TextLayer with specific bounds. Only valid for Pebble/Pebble Time */
 	s_hour_layer = text_layer_create(
-		GRect(BASE_X_LARGE, BASE_Y_LARGE, bounds.size.w, 72));
+		GRect(BASE_X_LARGE, BASE_Y_LARGE, bounds.size.w/2+TIME_PADDING, 72));
 	s_minute_layer = text_layer_create(
-		GRect(BASE_X_LARGE, BASE_Y_LARGE + LINE_HEIGHT_LARGE, bounds.size.w, 72));
+		GRect(BASE_X_LARGE, BASE_Y_LARGE + LINE_HEIGHT_LARGE, bounds.size.w/2+TIME_PADDING, 72));
 	s_date_layer_1 = text_layer_create(
 		GRect(BASE_X_SMALL, BASE_Y_SMALL, PBL_X-BASE_X_SMALL, LAYER_Y_SMALL));
 	s_date_layer_2 = text_layer_create(
@@ -299,11 +317,11 @@ void update_layout() {
 
 	/* Layout for hour layer */
 	text_layer_set_font(s_hour_layer, s_time_font);
-	text_layer_set_text_alignment(s_hour_layer, GTextAlignmentLeft);
+	text_layer_set_text_alignment(s_hour_layer, GTextAlignmentRight);
 
 	/* Layout for minute layer */
 	text_layer_set_font(s_minute_layer, s_time_font);
-	text_layer_set_text_alignment(s_minute_layer, GTextAlignmentLeft);
+	text_layer_set_text_alignment(s_minute_layer, GTextAlignmentRight);
 
 	/* Layout for date layer 1*/
 	text_layer_set_font(s_date_layer_1, s_text_font);
@@ -431,6 +449,14 @@ static void prv_inbox_received_handler(DictionaryIterator *iter, void *context) 
 		settings.bt_alarm = set_bt->value->int32 == 1;
 		persist_write_bool(K_BT_ALARM, settings.bt_alarm);
 	}
+
+	Tuple* set_leading_zero = dict_find(iter, MESSAGE_KEY_leading_zero);
+	if(set_leading_zero) {
+        settings.leading_zero = set_leading_zero->value->int32 == 1;
+		persist_write_bool(K_LEADING_ZERO, settings.leading_zero);
+		update_hour_format();
+		update_time();
+	}
 	APP_LOG(APP_LOG_LEVEL_DEBUG, "Exiting settings_handler");
 }
 
@@ -474,6 +500,13 @@ static void load_defaults(void) {
 	else{
 		settings.bt_alarm = false;
 	}
+	
+	if(persist_exists(K_LEADING_ZERO)){
+		settings.leading_zero = persist_read_bool(K_LEADING_ZERO);
+	}
+	else{
+		settings.leading_zero = true;
+	}
 	settings.bt_vibrate = false;
 }
 
@@ -486,6 +519,9 @@ static void main_window_load(Window* window) {
 
 	/* Set colors according to the theme */
 	update_theme();
+	
+	/* Set hour format according to the settings */
+	update_hour_format();
 
 	/* Add the layers as a child layers to the Window's root layer. 
 	 * The order here is important to control clipping */

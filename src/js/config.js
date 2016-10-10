@@ -23,6 +23,12 @@ module.exports = [
 				]
 			},
 			{
+				"type": "toggle",
+				"messageKey": "leading_zero",
+				"label": "Hour with leading zero",
+				"defaultValue": true
+			},
+			{
 				"type": "radiogroup",
 				"messageKey": "language",
 				"label": "Language",

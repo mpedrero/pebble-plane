@@ -1,7 +1,7 @@
 {
   "name": "pebble-plane",
   "author": "Manuel Pedrero",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "keywords": [
     "simple",
     "digital",
@@ -29,7 +29,8 @@
       "theme",
       "language",
       "bt_alarm",
-      "steps"
+      "steps",
+      "leading_zero"
     ],
     "resources": {
       "media": [
